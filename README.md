@@ -1,6 +1,6 @@
 ## Logseq Plugin Automatic URL title
 
-- Automatically fetches the title of a website and wraps it into markdown link format. Also, renders the favicon of the url next to it.
+Automatically fetches the title of a website and wraps it into markdown link format. Also, renders the favicon of the url next to it.
 
 # IMAGE
 
