@@ -13,7 +13,7 @@ async function getTitle(url) {
     try {
         const response = await fetch(url);
         const responseText = await response.text();
-        const matches = responseText.match(/<title(\s[^>]+)*>([^<]*)<\/title>/);
+        const matches = responseText.match(DEFAULT_SETTINGS.htmlTitleTagRegex);
         if (matches !== null && matches.length > 1 && matches[2] !== null) {
             return decodeHTML(matches[2].trim());
         }
@@ -25,31 +25,25 @@ async function getTitle(url) {
 }
 
 async function convertUrlToMarkdownLink(url, text, urlStartIndex, offset) {
-    try {
-        const title = await getTitle(url);
-        if (title === '') {
-            return { text, offset };
-        }
-
-        const startSection = text.slice(0, urlStartIndex);
-        const wrappedUrl = `[${title}](${url})`;
-        const endSection = text.slice(urlStartIndex + url.length);
-
-        return {
-            text: `${startSection}${wrappedUrl}${endSection}`,
-            offset: urlStartIndex + url.length,
-        };
-    } catch (e) {
-
+    const title = await getTitle(url);
+    if (title === '') {
+        return { text, offset };
     }
 
+    const startSection = text.slice(0, urlStartIndex);
+    const wrappedUrl = `[${title}](${url})`;
+    const endSection = text.slice(urlStartIndex + url.length);
+
+    return {
+        text: `${startSection}${wrappedUrl}${endSection}`,
+        offset: urlStartIndex + url.length,
+    };
 }
 
 const DEFAULT_SETTINGS = {
-    lineRegex:
-        /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
-    linkRegex:
-        /^\[([^\[\]]*)\]\((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\)$/i,
+    htmlTitleTagRegex: /<title(\s[^>]+)*>([^<]*)<\/title>/,
+    lineRegex: /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
+    linkRegex: /^\[([^\[\]]*)\]\((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\)$/i,
     imageRegex: /\.(gif|jpe?g|tiff?|png|webp|bmp|tga|psd|ai)$/i,
 };
 
@@ -67,9 +61,12 @@ async function parseBlockForLink(uuid: string) {
         return;
     }
 
-    const { content } = await logseq.Editor.getBlock(uuid);
-    let text = content;
+    const rawBlock = await logseq.Editor.getBlock(uuid);
+    if (!rawBlock) {
+        return;
+    }
 
+    let text = rawBlock.content;
     const urls = text.match(DEFAULT_SETTINGS.lineRegex);
     if (!urls) {
         return;
@@ -90,8 +87,6 @@ async function parseBlockForLink(uuid: string) {
 
     await logseq.Editor.updateBlock(uuid, text);
 }
-
-let blockArray = []; // TODO: this could be a set instead
 
 const main = async () => {
     logseq.provideStyle(`
@@ -142,6 +137,7 @@ const main = async () => {
                     for (let i = 0; i < extLinkList.length; i++) {
                         setFavicon(extLinkList[i]);
                     }
+
                     extLinksObserver.observe(appContainer, extLinksObserverConfig);
                 }
             }
@@ -149,25 +145,26 @@ const main = async () => {
     });
 
     setTimeout(() => {
-        const extLinkList: NodeListOf<HTMLAnchorElement> = doc.querySelectorAll('.external-link');
-        extLinkList.forEach(extLink => setFavicon(extLink));
+        doc.querySelectorAll('.external-link')?.forEach(extLink => setFavicon(extLink));
         extLinksObserver.observe(appContainer, extLinksObserverConfig);
     }, 500);
 
-    logseq.Editor.registerBlockContextMenuItem('Get link titles', async ({ uuid }) => {
+    logseq.Editor.registerBlockContextMenuItem('Format url titles', async ({ uuid }) => {
         await parseBlockForLink(uuid);
+        const extLinkList: NodeListOf<HTMLAnchorElement> = doc.querySelectorAll('.external-link');
+        extLinkList.forEach(extLink => setFavicon(extLink));
     });
 
+    const blockSet = new Set();
     logseq.DB.onChanged(async (e) => {
-        if (e.txMeta?.outlinerOp === 'insertBlocks') {
-            await blockArray.forEach(parseBlockForLink);
-            blockArray = [];
-        } else {
-            const block = e.blocks[0].uuid;
-            if (!blockArray.includes(block)) {
-                blockArray.push(block);
-            }
+        if (e.txMeta?.outlinerOp !== 'insertBlocks') {
+            blockSet.add(e.blocks[0]?.uuid);
+            doc.querySelectorAll('.external-link')?.forEach(extLink => setFavicon(extLink));
+            return;
         }
+
+        await blockSet.forEach((uuid) => parseBlockForLink(uuid));
+        blockSet.clear();
     });
 };
 

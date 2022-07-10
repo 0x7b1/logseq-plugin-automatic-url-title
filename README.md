@@ -4,6 +4,14 @@ Automatically fetches the title of a website and wraps it into markdown link for
 
 ![demo](demo.gif)
 
+To disable the favicon, override the `--favicon` variable.
+
+```css
+:root {
+  --favicons: none;
+}
+```
+
 ## Credits
 
 - https://github.com/sawhney17/logseq-automatic-linker
