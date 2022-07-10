@@ -4,7 +4,7 @@ Automatically fetches the title of a website and wraps it into markdown link for
 
 ![demo](demo.gif)
 
-To disable the favicon, override the `--favicon` variable.
+To disable the favicon, override the `--favicons` variable.
 
 ```css
 :root {
