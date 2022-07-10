@@ -2,8 +2,8 @@
     "name": "logseq-plugin-automatic-url-title",
     "version": "0.1.0",
     "author": "0x7b1",
-    "description": "Automatically fetches the title of any url and converts it into markdown link format",
-    "main": "dist/index.html",
+    "description": "Automatically fetches the title of a website and wraps it into markdown link format. Also, renders the favicon of the url next to it.",
+    "main": "index.html",
     "keywords": [],
     "license": "MIT",
     "logseq": {
@@ -15,9 +15,9 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "rm -rf ./dist/*.* && parcel build src/index.html --public-url ./",
-        "watch": "rm -rf ./dist/*.* && parcel watch src/index.html --public-url ./",
-        "build": "parcel build --no-source-maps src/index.html --public-url ./"
+        "dev": "rm -rf ./dist/*.* && parcel build index.html --public-url ./",
+        "watch": "rm -rf ./dist/*.* && parcel watch index.html --public-url ./",
+        "build": "parcel build --no-source-maps index.html --public-url ./"
     },
     "dependencies": {
         "@logseq/libs": "latest"

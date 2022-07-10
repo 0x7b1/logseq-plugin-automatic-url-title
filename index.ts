@@ -50,12 +50,9 @@ const DEFAULT_SETTINGS = {
         /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
     linkRegex:
         /^\[([^\[\]]*)\]\((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\)$/i,
-    // linkLineRegex:
-    //     /\[([^\[\]]*)\]\((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\)/gi,
     imageRegex: /\.(gif|jpe?g|tiff?|png|webp|bmp|tga|psd|ai)$/i,
 };
 
-// Is this text the whole block or just the url?
 function isImage(url) {
     const imageRegex = new RegExp(DEFAULT_SETTINGS.imageRegex);
     return imageRegex.test(url);
@@ -84,15 +81,7 @@ async function parseBlockForLink(uuid: string) {
     for (const url of urls) {
         const urlIndex = text.indexOf(url, offset);
 
-        console.log('---->URL', url);
-
-        if (isImage(url)) {
-            console.log('---> THIS is image');
-            continue;
-        }
-
-        if (isMarkdownLinkAlready(text, url, urlIndex)) {
-            console.log('---> is already markdown');
+        if (isMarkdownLinkAlready(text, url, urlIndex) || isImage(url)) {
             continue;
         }
 
