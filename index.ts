@@ -105,7 +105,7 @@ const main = async () => {
         text-underline-offset: 2px;
     }
     .external-link-img {
-        display: var(--favicons, none);
+        display: var(--favicons, inline-block);
         width: 16px;
         height: 16px;
         margin: -3px 7px 0 0;

@@ -3,7 +3,7 @@
     "version": "0.1.1",
     "author": "0x7b1",
     "description": "Automatically fetches the title of a website and wraps it into markdown link format. Also, renders the favicon of the url next to it.",
-    "main": "index.html",
+    "main": "dist/index.html",
     "keywords": [],
     "license": "MIT",
     "logseq": {
