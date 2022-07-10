@@ -71,8 +71,6 @@ async function parseBlockForLink(uuid: string) {
     let text = content;
 
     const urls = text.match(DEFAULT_SETTINGS.lineRegex);
-    console.log('---URL', urls);
-
     if (!urls) {
         return;
     }
@@ -96,22 +94,6 @@ async function parseBlockForLink(uuid: string) {
 let blockArray = []; // TODO: this could be a set instead
 
 const main = async () => {
-    logseq.Editor.registerBlockContextMenuItem('Get link titles', async ({ uuid }) => {
-        await parseBlockForLink(uuid);
-    });
-
-    logseq.DB.onChanged((e) => {
-        if (e.txMeta?.outlinerOp === 'insertBlocks') {
-            blockArray.forEach(parseBlockForLink);
-            blockArray = [];
-        } else {
-            const block = e.blocks[0].uuid;
-            if (!blockArray.includes(block)) {
-                blockArray.push(block);
-            }
-        }
-    });
-
     logseq.provideStyle(`
     .external-link {
         padding: 2px 4px;
@@ -123,7 +105,7 @@ const main = async () => {
         text-underline-offset: 2px;
     }
     .external-link-img {
-        display: var(--favicons, inline-block);
+        display: var(--favicons, none);
         width: 16px;
         height: 16px;
         margin: -3px 7px 0 0;
@@ -148,45 +130,45 @@ const main = async () => {
         extLinkEl.insertAdjacentElement('afterbegin', fav);
     };
 
-    // First init run
-    const setFaviconsOnLoad = () => {
-        setTimeout(() => {
-            const extLinkList: NodeListOf<HTMLAnchorElement> = doc.querySelectorAll('.external-link');
-            for (let i = 0; i < extLinkList.length; i++) {
-                setFavicon(extLinkList[i]);
-            }
-            runExtLinksObserver();
-        }, 500);
-    };
-
     // Favicons observer
-    let extLinksObserver, extLinksObserverConfig;
-    const initExtLinksObserver = () => {
-        extLinksObserverConfig = { childList: true, subtree: true };
-        const extLinksCallback = function(mutationsList, observer) {
-            for (let i = 0; i < mutationsList.length; i++) {
-                const addedNode = mutationsList[i].addedNodes[0];
-                if (addedNode && addedNode.childNodes.length) {
-                    const extLinkList = addedNode.querySelectorAll('.external-link');
-                    if (extLinkList.length) {
-                        extLinksObserver.disconnect();
-                        for (let i = 0; i < extLinkList.length; i++) {
-                            setFavicon(extLinkList[i]);
-                        }
-                        extLinksObserver.observe(appContainer, extLinksObserverConfig);
+    const extLinksObserverConfig = { childList: true, subtree: true };
+    const extLinksObserver = new MutationObserver((mutationsList, observer) => {
+        for (let i = 0; i < mutationsList.length; i++) {
+            const addedNode = mutationsList[i].addedNodes[0];
+            if (addedNode && addedNode.childNodes.length) {
+                const extLinkList = addedNode.querySelectorAll('.external-link');
+                if (extLinkList.length) {
+                    extLinksObserver.disconnect();
+                    for (let i = 0; i < extLinkList.length; i++) {
+                        setFavicon(extLinkList[i]);
                     }
+                    extLinksObserver.observe(appContainer, extLinksObserverConfig);
                 }
             }
-        };
-        extLinksObserver = new MutationObserver(extLinksCallback);
-    };
-    initExtLinksObserver();
+        }
+    });
 
-    const runExtLinksObserver = () => {
+    setTimeout(() => {
+        const extLinkList: NodeListOf<HTMLAnchorElement> = doc.querySelectorAll('.external-link');
+        extLinkList.forEach(extLink => setFavicon(extLink));
         extLinksObserver.observe(appContainer, extLinksObserverConfig);
-    };
+    }, 500);
 
-    setFaviconsOnLoad();
+    logseq.Editor.registerBlockContextMenuItem('Get link titles', async ({ uuid }) => {
+        await parseBlockForLink(uuid);
+    });
+
+    logseq.DB.onChanged(async (e) => {
+        if (e.txMeta?.outlinerOp === 'insertBlocks') {
+            await blockArray.forEach(parseBlockForLink);
+            blockArray = [];
+        } else {
+            const block = e.blocks[0].uuid;
+            if (!blockArray.includes(block)) {
+                blockArray.push(block);
+            }
+        }
+    });
 };
 
 logseq.ready(main).catch(console.error);
