@@ -1,5 +1,22 @@
 import '@logseq/libs';
 
+const DEFAULT_REGEX = {
+    htmlTitleTag: /<title(\s[^>]+)*>([^<]*)<\/title>/,
+    line: /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
+    imageExtension: /\.(gif|jpe?g|tiff?|png|webp|bmp|tga|psd|ai)$/i,
+};
+
+const FORMAT_SETTINGS = {
+    markdown: {
+        formatBeginning: '](',
+        applyFormat: (title, url) => `[${title}](${url})`,
+    },
+    org: {
+        formatBeginning: '][',
+        applyFormat: (title, url) => `[[${url}][${title}]]`,
+    },
+};
+
 function decodeHTML(input) {
     if (!input) {
         return '';
@@ -13,7 +30,7 @@ async function getTitle(url) {
     try {
         const response = await fetch(url);
         const responseText = await response.text();
-        const matches = responseText.match(DEFAULT_SETTINGS.htmlTitleTagRegex);
+        const matches = responseText.match(DEFAULT_REGEX.htmlTitleTag);
         if (matches !== null && matches.length > 1 && matches[2] !== null) {
             return decodeHTML(matches[2].trim());
         }
@@ -24,14 +41,14 @@ async function getTitle(url) {
     return '';
 }
 
-async function convertUrlToMarkdownLink(url, text, urlStartIndex, offset) {
+async function convertUrlToMarkdownLink(url, text, urlStartIndex, offset, applyFormat) {
     const title = await getTitle(url);
     if (title === '') {
         return { text, offset };
     }
 
     const startSection = text.slice(0, urlStartIndex);
-    const wrappedUrl = `[${title}](${url})`;
+    const wrappedUrl = applyFormat(title, url);
     const endSection = text.slice(urlStartIndex + url.length);
 
     return {
@@ -40,20 +57,22 @@ async function convertUrlToMarkdownLink(url, text, urlStartIndex, offset) {
     };
 }
 
-const DEFAULT_SETTINGS = {
-    htmlTitleTagRegex: /<title(\s[^>]+)*>([^<]*)<\/title>/,
-    lineRegex: /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
-    linkRegex: /^\[([^\[\]]*)\]\((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\)$/i,
-    imageRegex: /\.(gif|jpe?g|tiff?|png|webp|bmp|tga|psd|ai)$/i,
-};
-
 function isImage(url) {
-    const imageRegex = new RegExp(DEFAULT_SETTINGS.imageRegex);
+    const imageRegex = new RegExp(DEFAULT_REGEX.imageExtension);
     return imageRegex.test(url);
 }
 
-function isMarkdownLinkAlready(text, url, urlIndex) {
-    return text.slice(urlIndex - 2, urlIndex) === '](';
+function isAlreadyFormatted(text, url, urlIndex, formatBeginning) {
+    return text.slice(urlIndex - 2, urlIndex) === formatBeginning;
+}
+
+async function getFormatSettings() {
+    const { preferredFormat } = await logseq.App.getUserConfigs();
+    if (!preferredFormat) {
+        return null;
+    }
+
+    return FORMAT_SETTINGS[preferredFormat];
 }
 
 async function parseBlockForLink(uuid: string) {
@@ -67,8 +86,13 @@ async function parseBlockForLink(uuid: string) {
     }
 
     let text = rawBlock.content;
-    const urls = text.match(DEFAULT_SETTINGS.lineRegex);
+    const urls = text.match(DEFAULT_REGEX.line);
     if (!urls) {
+        return;
+    }
+
+    const formatSettings = await getFormatSettings();
+    if (!formatSettings) {
         return;
     }
 
@@ -76,11 +100,11 @@ async function parseBlockForLink(uuid: string) {
     for (const url of urls) {
         const urlIndex = text.indexOf(url, offset);
 
-        if (isMarkdownLinkAlready(text, url, urlIndex) || isImage(url)) {
+        if (isAlreadyFormatted(text, url, urlIndex, formatSettings.formatBeginning) || isImage(url)) {
             continue;
         }
 
-        const updatedTitle = await convertUrlToMarkdownLink(url, text, urlIndex, offset);
+        const updatedTitle = await convertUrlToMarkdownLink(url, text, urlIndex, offset, formatSettings.applyFormat);
         text = updatedTitle.text;
         offset = updatedTitle.offset;
     }
