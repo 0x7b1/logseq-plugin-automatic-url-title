@@ -2,6 +2,7 @@ import '@logseq/libs';
 
 const DEFAULT_REGEX = {
     wrappedInCommand: /(\{\{(video)\s*(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})\s*\}\})/gi,
+    wrappedInCodeTags: /((`|```).*(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,}).*(`|```))/gi,
     htmlTitleTag: /<title(\s[^>]+)*>([^<]*)<\/title>/,
     line: /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi,
     imageExtension: /\.(gif|jpe?g|tiff?|png|webp|bmp|tga|psd|ai)$/i,
@@ -67,6 +68,15 @@ function isAlreadyFormatted(text, url, urlIndex, formatBeginning) {
     return text.slice(urlIndex - 2, urlIndex) === formatBeginning;
 }
 
+function isWrappedInCodeTags(text, url) {
+    const wrappedLinks = text.match(DEFAULT_REGEX.wrappedInCodeTags);
+    if (!wrappedLinks) {
+        return false;
+    }
+
+    return wrappedLinks.some(command => command.includes(url));
+}
+
 function isWrappedInCommand(text, url) {
     const wrappedLinks = text.match(DEFAULT_REGEX.wrappedInCommand);
     if (!wrappedLinks) {
@@ -110,7 +120,7 @@ async function parseBlockForLink(uuid: string) {
     for (const url of urls) {
         const urlIndex = text.indexOf(url, offset);
 
-        if (isAlreadyFormatted(text, url, urlIndex, formatSettings.formatBeginning) || isImage(url) || isWrappedInCommand(text, url)) {
+        if (isAlreadyFormatted(text, url, urlIndex, formatSettings.formatBeginning) || isImage(url) || isWrappedInCommand(text, url) || isWrappedInCodeTags(text, url)) {
             continue;
         }
 
